@@ -14,7 +14,7 @@ namespace Chetch.Services
     public class NamedPipeServiceClient<M> : ChetchServiceClient, IDisposable where M : ServiceMessage, new()
     {
 
-        //delegate or what
+        //delegate
         public delegate void MessageReceived(M message);
 
         private const int CONNECT_TIMEOUT = 15000;
