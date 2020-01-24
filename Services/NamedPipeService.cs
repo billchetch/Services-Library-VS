@@ -104,15 +104,34 @@ namespace Chetch.Services
             }
         }
 
-        virtual protected M CreatePingResponse(M message)
+        virtual protected M CreateResponse(M message, NamedPipeManager.MessageType responseType)
         {
             var response = new M();
-            response.Type = NamedPipeManager.MessageType.PING_RESPONSE;
-            response.Add(message.ID);
+            response.Type = responseType;
+            response.ResponseID = message.ID;
+            return response;
+        }
+
+        virtual protected M CreatePingResponse(M message)
+        {
+            var response = CreateResponse(message, NamedPipeManager.MessageType.PING_RESPONSE);
             var sender = message.Value;
             response.Add(sender);
 
             return response;
+        }
+
+        virtual protected M CreateStatusResponse(M message)
+        {
+            var response = CreateResponse(message, NamedPipeManager.MessageType.STATUS_RESPONSE);
+            return response;
+        }
+
+        virtual protected M CreateError(Exception e, M message)
+        {
+            var error = CreateResponse(message, NamedPipeManager.MessageType.ERROR);
+            error.Value = e.Message;
+            return error;
         }
 
         virtual protected void HandleReceivedMessage(M message)
@@ -120,17 +139,23 @@ namespace Chetch.Services
             switch (message.Type)
             {
                 case NamedPipeManager.MessageType.REGISTER_LISTENER:
-                    String pipeName = message.Value;
-                    CreatePipeOut(pipeName);
-                    Log.WriteInfo("Created pipe out: " + pipeName);
+                    String pipeName = message.Sender;
+                    try
+                    {
+                        CreatePipeOut(pipeName);
+                        Log.WriteInfo("Created pipe out: " + pipeName);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.WriteError("Error creating " + pipeName + ": " + e.Message);
+                    }
                     break;
 
                 case NamedPipeManager.MessageType.PING:
                     var response = CreatePingResponse(message);
-                    var sender = message.Value;
                     try
                     {
-                        Send(response, sender);
+                        Send(response, message.Sender);
                     }
                     catch (Exception)
                     {
@@ -138,8 +163,26 @@ namespace Chetch.Services
                     }
                     break;
 
+                case NamedPipeManager.MessageType.STATUS_REQUEST:
+                    response = CreateStatusResponse(message);
+                    try
+                    {
+                        Send(response, message.Sender);
+                    }
+                    catch (Exception)
+                    {
+                        //fail quietly on status request
+                    }
+                    break;
+
                 default:
-                    OnMessageReceived(message);
+                    try
+                    {
+                        OnMessageReceived(message);
+                    } catch (Exception e)
+                    {
+                        Broadcast(CreateError(e, message));
+                    }
                     break;
             }
         }

@@ -11,12 +11,8 @@ using System.IO;
 
 namespace Chetch.Services
 {
-    public class NamedPipeServiceClient<M> : ChetchServiceClient, IDisposable where M : ServiceMessage, new()
+    public class NamedPipeServiceClient<M, D> : ChetchServiceClient, IDisposable where M : ServiceMessage, new() where D : ServiceData<M>, new()
     {
-
-        //delegate
-        public delegate void MessageReceived(M message);
-
         private const int CONNECT_TIMEOUT = 15000;
 
         private NamedPipeClientStream _pipeClientOut;
@@ -26,37 +22,46 @@ namespace Chetch.Services
         private String _listenPipeName;
         private bool _listening = false;
         private String _lastPingID;
-        
+
         CancellationTokenSource _cancelListenTokenSource;
 
-        public event MessageReceived OnMessageReceived;
+        //delegate
+        public delegate void MessageReceivedHandler(M message);
+        public event MessageReceivedHandler MessageReceived;
+
+        private D _serviceData;
+        public D ServiceData { get { return _serviceData; } }
 
         public NamedPipeServiceClient(String serviceInboundID)
         {
             _serviceInboundID = serviceInboundID;
             _listenPipeName = _serviceInboundID + "-" + Process.GetCurrentProcess().Id.ToString() + "-" + this.GetHashCode() + "-" + DateTime.Now.ToString("yyyyMMddHHmmssffff");
             _pipeClientIn = new NamedPipeClientStream(".", _listenPipeName, PipeDirection.In);
+            _serviceData = new D();
         }
 
+        
         private NamedPipeClientStream CreatePipeOut()
         {
             return new NamedPipeClientStream(".", _serviceInboundID, PipeDirection.Out);
         }
 
-        public void StartListening(MessageReceived messageHandler, Action<Task> OnStoppedListening)
+        public void StartListening(MessageReceivedHandler messageHandler, Action<Task> OnStoppedListening)
         {
-            //Send request to open a pipe out
-            var message = new M();
-            message.Type = NamedPipeManager.MessageType.REGISTER_LISTENER;
-            message.Add(_listenPipeName);
-            Send(message);
-            Console.WriteLine("Requested a pipe out for " + _listenPipeName);
+            if (_listening)
+            {
+                throw new Exception("Client already listening");
+            }
 
+            //Send request to open a pipe out (using a response request will populate the 'sender' property of the message
+            var message = CreateResponseRequest(NamedPipeManager.MessageType.REGISTER_LISTENER);
+            Send(message);
+            
             _cancelListenTokenSource = new CancellationTokenSource();
             Task task = Task.Run((Action)this.Listen, _cancelListenTokenSource.Token);
             task.ContinueWith(OnStoppedListening);
             _listening = true;
-            OnMessageReceived += messageHandler;
+            MessageReceived += messageHandler;
         }
 
         public void StopListening()
@@ -67,8 +72,10 @@ namespace Chetch.Services
 
         virtual protected void HandleReceivedMessage(M message)
         {
+            ServiceData.LastMessageReceived = message;
+
             //call delegate
-            OnMessageReceived?.Invoke(message);
+            MessageReceived?.Invoke(message);
         }
         
         private void Listen()
@@ -104,11 +111,9 @@ namespace Chetch.Services
                     System.Threading.Thread.Sleep(100);
                 }
             }
-
-            Console.WriteLine("Finished listening");
         }
 
-        virtual public void Send(ServiceMessage message)
+        virtual public void Send(M message)
         {
             if(_pipeClientOut == null)
             {
@@ -121,7 +126,8 @@ namespace Chetch.Services
             {
                 sw.AutoFlush = true;
                 message.Serialize(sw);
-                
+                ServiceData.LastMessageSent = message;
+
                 sw.Close();
                 sw.Dispose();
             }
@@ -138,16 +144,28 @@ namespace Chetch.Services
             Send(message);
         }
 
+        virtual protected M CreateResponseRequest(NamedPipeManager.MessageType messageType)
+        {
+            var message = new M();
+            message.Type = messageType;
+            message.Sender = _listenPipeName;
+            return message;
+        }
+
         public void Ping()
         {
             if(_lastPingID != null || !_listening)
             {
                 return; //either waiting for last ping to return or not valid cos no listener has been attached to service
             }
-            var message = new M();
-            message.Type = NamedPipeManager.MessageType.PING;
-            message.Add(_listenPipeName);
+            var message = CreateResponseRequest(NamedPipeManager.MessageType.PING);
             _lastPingID = message.ID;
+            Send(message);
+        }
+
+        public void RequestStatus()
+        {
+            var message = CreateResponseRequest(NamedPipeManager.MessageType.STATUS_REQUEST);
             Send(message);
         }
 

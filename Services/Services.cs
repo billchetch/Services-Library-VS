@@ -94,6 +94,15 @@ namespace Chetch.Services
     //base service message class
     public class ServiceMessage : NamedPipeManager.Message
     {
+        public String Command { get { return Value; } }
+        public String[] CommandArgs
+        {
+            get
+            {
+                return Values.GetRange(1, Values.Count - 1).ToArray();
+            }
+        }
+
         public ServiceMessage()
         {
             //parameterless constructor required for xml serializing
@@ -112,6 +121,36 @@ namespace Chetch.Services
         public ServiceMessage(String message, NamedPipeManager.MessageType type = NamedPipeManager.MessageType.NOT_SET) : this(message, 0, type)
         {
             //empty
+        }
+
+        public void SetCommand(String command, String[] args)
+        {
+            Type = NamedPipeManager.MessageType.COMMAND;
+            Add(command);
+            if(args != null)
+            {
+                Values.AddRange(args);
+            }
+        }
+    }
+
+    //base service data object
+    public class ServiceData<M> : DataSourceObject where M : ServiceMessage
+    {
+        public ServiceData(){
+
+        }
+
+        public M LastMessageReceived
+        {
+            set { SetValue("LastMessageReceived", value);  }
+            get { return (M)GetValue("LastMessageReceived");  }
+        }
+
+        public M LastMessageSent
+        {
+            set { SetValue("LastMessageSent", value); }
+            get { return (M)GetValue("LastMessageSent"); }
         }
     }
 }
