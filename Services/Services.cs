@@ -123,9 +123,10 @@ namespace Chetch.Services
             //empty
         }
 
-        public void SetCommand(String command, String[] args)
+        public void SetCommand(String target, String command, String[] args)
         {
             Type = NamedPipeManager.MessageType.COMMAND;
+            Target = target;
             Add(command);
             if(args != null)
             {

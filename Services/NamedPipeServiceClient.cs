@@ -46,6 +46,41 @@ namespace Chetch.Services
             return new NamedPipeClientStream(".", _serviceInboundID, PipeDirection.Out);
         }
 
+        public virtual void ProcessCommandLine(String[] commandLine)
+        {
+            if(commandLine == null|| commandLine.Length == 0)
+            {
+                throw new Exception("Command line cannot null or empty");
+            }
+
+            String target = commandLine[0];
+            if (commandLine.Length== 1)
+            {
+                switch (target.ToUpper())
+                {
+                    case "PING":
+                        Ping();
+                        break;
+
+                    case "STATUS":
+                        RequestStatus();
+                        break;
+                }
+            }
+            else if (commandLine.Length >= 2)
+            {
+                String command = commandLine[1];
+                String[] args = null;
+                if (commandLine.Length > 2)
+                {
+                    args = new String[commandLine.Length - 2];
+                    Array.Copy(commandLine, 2, args, 0, args.Length);
+                }
+
+                SendCommand(target, command, args);
+            }
+        }
+
         public void StartListening(MessageReceivedHandler messageHandler, Action<Task> OnStoppedListening)
         {
             if (_listening)
@@ -154,9 +189,13 @@ namespace Chetch.Services
 
         public void Ping()
         {
-            if(_lastPingID != null || !_listening)
+            if(_lastPingID != null)
             {
                 return; //either waiting for last ping to return or not valid cos no listener has been attached to service
+            }
+            if (!_listening)
+            {
+                throw new Exception("Client is not listening so cannot receive Ping responses");
             }
             var message = CreateResponseRequest(NamedPipeManager.MessageType.PING);
             _lastPingID = message.ID;
@@ -165,8 +204,19 @@ namespace Chetch.Services
 
         public void RequestStatus()
         {
+            if (!_listening)
+            {
+                throw new Exception("Client is not listening so cannot receive status report");
+            }
             var message = CreateResponseRequest(NamedPipeManager.MessageType.STATUS_REQUEST);
             Send(message);
+        }
+
+        public void SendCommand(String target, String command, String[] args = null)
+        {
+            var cmd = new M();
+            cmd.SetCommand(target, command, args);
+            Send(cmd);
         }
 
         private void ClosePipe(NamedPipeClientStream pipe)

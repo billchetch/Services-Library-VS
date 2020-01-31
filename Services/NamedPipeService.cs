@@ -152,26 +152,38 @@ namespace Chetch.Services
                     break;
 
                 case NamedPipeManager.MessageType.PING:
-                    var response = CreatePingResponse(message);
                     try
                     {
+                        var response = CreatePingResponse(message);
                         Send(response, message.Sender);
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
-                        //fail quietly on ping
+                        Log.WriteError("Error attempting to response to Ping: " + e.Message);
                     }
                     break;
 
                 case NamedPipeManager.MessageType.STATUS_REQUEST:
-                    response = CreateStatusResponse(message);
                     try
                     {
+                        var response = CreateStatusResponse(message);
                         Send(response, message.Sender);
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
-                        //fail quietly on status request
+                        Log.WriteError("Error attempting to response to status request: " + e.Message);
+                    }
+                    break;
+
+
+                case NamedPipeManager.MessageType.COMMAND:
+                    try
+                    {
+                        OnCommandReceived(message);
+                    }
+                    catch (Exception e)
+                    {
+                        Broadcast(CreateError(e, message));
                     }
                     break;
 
@@ -187,6 +199,9 @@ namespace Chetch.Services
             }
         }
 
+
+        //override these in child classes, OnMessageReceived picks up everything except those defined in HandlereceivedMessage
+        abstract protected void OnCommandReceived(M message);
         abstract protected void OnMessageReceived(M message);
         
         private int OnClientConnectInbound(NamedPipeManager.PipeInfo pipeInfo)
