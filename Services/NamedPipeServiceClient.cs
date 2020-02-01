@@ -47,7 +47,7 @@ namespace Chetch.Services
 
         public virtual void ProcessCommandLine(String commandLine)
         {
-            ProcessCommandLine(commandLine == null ? null : commandLine.Split(' '));
+            ProcessCommandLine(commandLine == null ? null : Utilities.Format.RemoveRepeatWhiteSpace(commandLine).Split(' '));
         }
 
         public virtual void ProcessCommandLine(String[] commandLine)
@@ -70,6 +70,10 @@ namespace Chetch.Services
 
                 case "ERROR":
                     ErrorTest();
+                    break;
+
+                case "ECHO":
+                    Echo(commandLine.Length == 2 ? commandLine[1] : "Echoing nothing...");
                     break;
 
                 default:
@@ -224,6 +228,17 @@ namespace Chetch.Services
                 throw new Exception("Client is not listening so cannot receive test error message from service");
             }
             var message = CreateResponseRequest(NamedPipeManager.MessageType.ERROR_TEST);
+            Send(message);
+        }
+
+        public void Echo(String toEcho)
+        {
+            if (!_listening)
+            {
+                throw new Exception("Client is not listening so cannot receive echo from service");
+            }
+            var message = CreateResponseRequest(NamedPipeManager.MessageType.ECHO);
+            message.Value = toEcho;
             Send(message);
         }
 

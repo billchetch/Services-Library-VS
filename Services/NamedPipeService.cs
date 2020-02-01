@@ -132,6 +132,13 @@ namespace Chetch.Services
             return error;
         }
 
+        virtual protected M CreateEchoResponse(M message)
+        {
+            var response = CreateResponse(message, NamedPipeManager.MessageType.ECHO_RESPONSE);
+            response.Value = message.Value;
+            return response;
+        }
+
         virtual protected void HandleReceivedMessage(M message)
         {
             switch (message.Type)
@@ -157,7 +164,7 @@ namespace Chetch.Services
                     }
                     catch (Exception e)
                     {
-                        Log.WriteError("Error attempting to response to Ping: " + e.Message);
+                        Log.WriteError("Error attempting to respond to Ping: " + e.Message);
                     }
                     break;
 
@@ -169,7 +176,7 @@ namespace Chetch.Services
                     }
                     catch (Exception e)
                     {
-                        Log.WriteError("Error attempting to response to status request: " + e.Message);
+                        Log.WriteError("Error attempting to respond to status request: " + e.Message);
                     }
                     break;
 
@@ -184,6 +191,18 @@ namespace Chetch.Services
                     }
                     break;
 
+                case NamedPipeManager.MessageType.ECHO:
+                    try
+                    {
+                        var response = CreateEchoResponse(message);
+                        Send(response, message.Sender);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.WriteError("Error attempting to respond to echo: " + e.Message);
+                    }
+                    break;
+                    break;
 
                 case NamedPipeManager.MessageType.COMMAND:
                     try
