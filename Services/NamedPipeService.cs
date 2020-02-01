@@ -115,9 +115,7 @@ namespace Chetch.Services
         virtual protected M CreatePingResponse(M message)
         {
             var response = CreateResponse(message, NamedPipeManager.MessageType.PING_RESPONSE);
-            var sender = message.Value;
-            response.Add(sender);
-
+            response.Add(message.Sender);
             return response;
         }
 
@@ -172,6 +170,17 @@ namespace Chetch.Services
                     catch (Exception e)
                     {
                         Log.WriteError("Error attempting to response to status request: " + e.Message);
+                    }
+                    break;
+
+                case NamedPipeManager.MessageType.ERROR_TEST:
+                    try
+                    {
+                        throw new Exception("Error test requested by message " + message.ID + " from sender " + message.Sender);
+                    }
+                    catch (Exception e)
+                    {
+                        Broadcast(CreateError(e, message));
                     }
                     break;
 

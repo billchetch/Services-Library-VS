@@ -21,8 +21,7 @@ namespace Chetch.Services
         private String _serviceInboundID;
         private String _listenPipeName;
         private bool _listening = false;
-        private String _lastPingID;
-
+        
         CancellationTokenSource _cancelListenTokenSource;
 
         //delegate
@@ -40,44 +39,55 @@ namespace Chetch.Services
             _serviceData = new D();
         }
 
-        
+
         private NamedPipeClientStream CreatePipeOut()
         {
             return new NamedPipeClientStream(".", _serviceInboundID, PipeDirection.Out);
         }
 
+        public virtual void ProcessCommandLine(String commandLine)
+        {
+            ProcessCommandLine(commandLine == null ? null : commandLine.Split(' '));
+        }
+
         public virtual void ProcessCommandLine(String[] commandLine)
         {
-            if(commandLine == null|| commandLine.Length == 0)
+            if(commandLine == null || commandLine.Length == 0)
             {
                 throw new Exception("Command line cannot null or empty");
             }
 
             String target = commandLine[0];
-            if (commandLine.Length== 1)
+            switch (target.ToUpper())
             {
-                switch (target.ToUpper())
-                {
-                    case "PING":
-                        Ping();
-                        break;
+                case "PING":
+                    Ping();
+                    break;
 
-                    case "STATUS":
-                        RequestStatus();
-                        break;
-                }
-            }
-            else if (commandLine.Length >= 2)
-            {
-                String command = commandLine[1];
-                String[] args = null;
-                if (commandLine.Length > 2)
-                {
-                    args = new String[commandLine.Length - 2];
-                    Array.Copy(commandLine, 2, args, 0, args.Length);
-                }
+                case "STATUS":
+                    RequestStatus();
+                    break;
 
-                SendCommand(target, command, args);
+                case "ERROR":
+                    ErrorTest();
+                    break;
+
+                default:
+                    if (commandLine.Length >= 2)
+                    {
+                        String command = commandLine[1];
+                        String[] args = null;
+                        if (commandLine.Length > 2)
+                        {
+                            args = new String[commandLine.Length - 2];
+                            Array.Copy(commandLine, 2, args, 0, args.Length);
+                        }
+                        SendCommand(target, command, args);
+                    } else
+                    {
+                        throw new Exception("Process command line exception: incorrect number of arguments");
+                    }
+                    break;
             }
         }
 
@@ -189,16 +199,11 @@ namespace Chetch.Services
 
         public void Ping()
         {
-            if(_lastPingID != null)
-            {
-                return; //either waiting for last ping to return or not valid cos no listener has been attached to service
-            }
             if (!_listening)
             {
                 throw new Exception("Client is not listening so cannot receive Ping responses");
             }
             var message = CreateResponseRequest(NamedPipeManager.MessageType.PING);
-            _lastPingID = message.ID;
             Send(message);
         }
 
@@ -206,9 +211,19 @@ namespace Chetch.Services
         {
             if (!_listening)
             {
-                throw new Exception("Client is not listening so cannot receive status report");
+                throw new Exception("Client is not listening so cannot receive service status report");
             }
             var message = CreateResponseRequest(NamedPipeManager.MessageType.STATUS_REQUEST);
+            Send(message);
+        }
+
+        public void ErrorTest()
+        {
+            if (!_listening)
+            {
+                throw new Exception("Client is not listening so cannot receive test error message from service");
+            }
+            var message = CreateResponseRequest(NamedPipeManager.MessageType.ERROR_TEST);
             Send(message);
         }
 

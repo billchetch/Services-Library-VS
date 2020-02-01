@@ -30,7 +30,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Chetch.Utilities">
+    <Reference Include="Chetch.Utilities, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\Utilities\Utilities\bin\Debug\Chetch.Utilities.dll</HintPath>
     </Reference>
     <Reference Include="System" />
