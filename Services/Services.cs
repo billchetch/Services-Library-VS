@@ -7,151 +7,126 @@ using System.ServiceProcess;
 using System.IO;
 using System.Diagnostics;
 using Chetch.Utilities;
+using Chetch.Utilities.Config;
+using Chetch.Messaging;
 
 namespace Chetch.Services
 {
-    
-    public class ServiceLog
-    {
-        public const int EVENT_LOG = 1;
-        public const int CONSOLE = 2;
-
-        private EventLog _log;
-        public int Options { get; set; }
-        public String Source
-        {
-            get
-            {
-                return _log.Source;
-            }
-            set
-            {
-                _log.Source = value;
-            }
-        }
-        public String Log
-        {
-            get
-            {
-                return _log.Log;
-            }
-            set
-            {
-                _log.Log = value;
-            }
-        }
-
-        public ServiceLog(int logOptions = EVENT_LOG)
-        {
-            Options = logOptions;
-            _log = new EventLog();
-        }
-
-        public void WriteEntry(String entry, EventLogEntryType eventType)
-        {
-            if((Options & EVENT_LOG) > 0)
-            {
-                _log.WriteEntry(entry, eventType);
-            }
-            
-            if ((Options & CONSOLE) > 0)
-            {
-                Console.WriteLine(eventType + ": " + entry);
-            }
-        }
-
-        public void WriteError(String entry)
-        {
-            WriteEntry(entry, EventLogEntryType.Error);
-        }
-        public void WriteInfo(String entry)
-        {
-            WriteEntry(entry, EventLogEntryType.Information);
-        }
-        public void WriteWarning(String entry)
-        {
-            WriteEntry(entry, EventLogEntryType.Warning);
-        }
-    }
-
     abstract public class ChetchService : ServiceBase
     {
-        protected ServiceLog Log { get; set; }
+        protected readonly String EVENT_LOG_NAME = null;
+        protected TraceSource Tracing { get; set; } = null;
 
-        public ChetchService()
+        public ChetchService(String traceSourceName, String logName)
         {
-            Log = new ServiceLog();
-            Log.Options = ServiceLog.EVENT_LOG;
-        }
-    }
-
-    //base client class
-    abstract public class ChetchServiceClient
-    {
-       
-    }
-
-    //base service message class
-    public class ServiceMessage : NamedPipeManager.Message
-    {
-        public String Command { get { return Value; } }
-        public String[] CommandArgs
-        {
-            get
+            if (logName != null)
             {
-                return Values.GetRange(1, Values.Count - 1).ToArray();
+                EVENT_LOG_NAME = logName;
+                if (!AppConfig.VerifyEventLogSources(EVENT_LOG_NAME))
+                {
+                    throw new Exception("Newly created event log sources.  Restart required");
+                }
             }
+            Tracing = TraceSourceManager.GetInstance(traceSourceName);
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Created service with trace source {0} and event log {1}", traceSourceName, logName);
         }
 
-        public ServiceMessage()
+        public void TestStart(string[] args = null)
         {
-            //parameterless constructor required for xml serializing
+            OnStart(args);
         }
 
-        public ServiceMessage(NamedPipeManager.MessageType type = NamedPipeManager.MessageType.NOT_SET) : base(type)
+        public void TestStop()
         {
-            
-        }
-
-        public ServiceMessage(String message, int subType = 0, NamedPipeManager.MessageType type = NamedPipeManager.MessageType.NOT_SET) : base(message, subType, type)
-        {
-            
-        }
-
-        public ServiceMessage(String message, NamedPipeManager.MessageType type = NamedPipeManager.MessageType.NOT_SET) : this(message, 0, type)
-        {
-            //empty
-        }
-
-        public void SetCommand(String target, String command, String[] args)
-        {
-            Type = NamedPipeManager.MessageType.COMMAND;
-            Target = target;
-            Add(command);
-            if(args != null)
-            {
-                Values.AddRange(args);
-            }
+            OnStop();
         }
     }
 
-    //base service data object
-    public class ServiceData<M> : DataSourceObject where M : ServiceMessage
+    abstract public class ChetchMessagingServer : ChetchService
     {
-        public ServiceData(){
+        protected Server MServer { get; set; } = null;
+        
+        public ChetchMessagingServer(String traceSourceName, String logName) : base(traceSourceName, logName)
+        {
 
         }
 
-        public M LastMessageReceived
+        /// <summary>
+        /// Override this method to provide specific server instance and configure  server tracing
+        /// </summary>
+        /// <returns></returns>
+        abstract protected Server CreateServer();
+        
+        override protected void OnStart(string[] args)
         {
-            set { SetValue("LastMessageReceived", value);  }
-            get { return (M)GetValue("LastMessageReceived");  }
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting service {0}", ServiceName);
+            base.OnStart(args);
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Creating messaging server");
+            MServer = CreateServer();
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Created messaging server: {0}", MServer.ID);
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting messaging server {0}", MServer.ID);
+            MServer.Start();
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Started messaging server {0}", MServer.ID);
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
         }
 
-        public M LastMessageSent
+        override protected void OnStop()
         {
-            set { SetValue("LastMessageSent", value); }
-            get { return (M)GetValue("LastMessageSent"); }
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopping service {0}", ServiceName);
+            base.OnStop();
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopping messaging server {0}", MServer.ID);
+            MServer.Stop();
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped messaging server {0}", MServer.ID);
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
+        }
+    } //end ChetchMessagingService
+
+
+    abstract public class ChetchMessagingClient : ChetchService
+    {
+        protected ClientConnection Client { get; set; } = null;
+        protected String ClientName { get; set; } = null;
+
+        abstract protected ClientConnection ConnectClient();
+        abstract public void HendleClientMessage(Connection cnn, Message message);
+        abstract public void HandleClientError(Connection cnn, Exception e);
+
+        public ChetchMessagingClient(String traceSourceName, String logName) : base(traceSourceName, logName)
+        {
+
+        }
+
+        override protected void OnStart(string[] args)
+        {
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting service {0}", ServiceName);
+            base.OnStart(args);
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Connecting client to server");
+            Client = ConnectClient();
+            Client.HandleMessage += HendleClientMessage;
+            Client.HandleError += HandleClientError;
+
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
+        }
+
+        override protected void OnStop()
+        {
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopping service {0}", ServiceName);
+            base.OnStop();
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Closing client {0}", Client.Name);
+            Client.Close();
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Closed client {0}", Client.Name);
+
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
         }
     }
 }

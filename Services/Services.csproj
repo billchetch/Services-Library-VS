@@ -30,6 +30,13 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Chetch.Application, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Application\Application\bin\Debug\Chetch.Application.dll</HintPath>
+    </Reference>
+    <Reference Include="Chetch.Messaging">
+      <HintPath>..\..\Messaging\Messaging\bin\Debug\Chetch.Messaging.dll</HintPath>
+    </Reference>
     <Reference Include="Chetch.Utilities, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\Utilities\Utilities\bin\Debug\Chetch.Utilities.dll</HintPath>
@@ -45,12 +52,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="NamedPipeService.cs">
+    <Compile Include="Services.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="NamedPipeServiceClient.cs" />
-    <Compile Include="Services.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TCPMessagingClient.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="TCPMessagingServer.cs">
+      <SubType>Component</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
