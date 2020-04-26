@@ -66,11 +66,17 @@ namespace Chetch.Services
             MServer = CreateServer();
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Created messaging server: {0}", MServer.ID);
 
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting messaging server {0}", MServer.ID);
-            MServer.Start();
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Started messaging server {0}", MServer.ID);
-
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
+            try
+            {
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting messaging server {0}", MServer.ID);
+                MServer.Start();
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Started messaging server {0}", MServer.ID);
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
+            } catch (Exception e)
+            {
+                Tracing?.TraceEvent(TraceEventType.Error, 0, "{0} exception: {1}", e.GetType().ToString(), e.Message);
+                throw e;
+            }
         }
 
         override protected void OnStop()
@@ -93,7 +99,7 @@ namespace Chetch.Services
         protected String ClientName { get; set; } = null;
 
         abstract protected ClientConnection ConnectClient();
-        abstract public void HendleClientMessage(Connection cnn, Message message);
+        abstract public bool HandleCommand(String command, List<Object> args, Message response);
         abstract public void HandleClientError(Connection cnn, Exception e);
 
         public ChetchMessagingClient(String traceSourceName, String logName) : base(traceSourceName, logName)
@@ -103,18 +109,32 @@ namespace Chetch.Services
 
         override protected void OnStart(string[] args)
         {
+            if(ClientName == null)
+            {
+                var msg = "Cannot start service as no Client Name provided";
+                Tracing?.TraceEvent(TraceEventType.Error, 0, msg);
+                throw new Exception(msg);
+            }
+
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting service {0}", ServiceName);
             base.OnStart(args);
 
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Connecting client to server");
-            Client = ConnectClient();
-            Client.HandleMessage += HendleClientMessage;
-            Client.HandleError += HandleClientError;
+            try
+            {
+                Client = ConnectClient();
+                Client.HandleMessage += HendleClientMessage;
+                Client.HandleError += HandleClientError;
 
-
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
-
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
+            }
+            catch (Exception e)
+            {
+                var ie = e.InnerException;
+                Tracing?.TraceEvent(TraceEventType.Error, 0, "{0}: {1} with inner exception {2}: {3}", e.GetType().ToString(), e.Message, ie == null ? "N/A" : ie.GetType().ToString(), ie == null ? "N/A" : ie.Message);
+                throw e;
+            }
         }
 
         override protected void OnStop()
@@ -127,6 +147,26 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Closed client {0}", Client.Name);
 
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
+        }
+
+        virtual public void HendleClientMessage(Connection cnn, Message message)
+        {
+            switch (message.Type)
+            {
+                case MessageType.COMMAND:
+                    if (message.HasValue("Arguments"))
+                    {
+                        var cmd = message.Value;
+                        var args = message.GetList<Object>("Arguments");
+
+                        var response = Client.CreateResponse(message, MessageType.COMMAND_RESPONSE);
+                        if (HandleCommand(cmd, args, response))
+                        {
+                            Client.SendMessage(response);
+                        }
+                    }
+                    break;
+            }
         }
     }
 }
