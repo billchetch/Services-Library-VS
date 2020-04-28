@@ -99,7 +99,7 @@ namespace Chetch.Services
         protected String ClientName { get; set; } = null;
 
         abstract protected ClientConnection ConnectClient();
-        abstract public bool HandleCommand(String command, List<Object> args, Message response);
+        abstract public bool HandleCommand(Connection cnn, Message message, String command, List<Object> args, Message response);
         abstract public void HandleClientError(Connection cnn, Exception e);
 
         public ChetchMessagingClient(String traceSourceName, String logName) : base(traceSourceName, logName)
@@ -160,7 +160,7 @@ namespace Chetch.Services
                         var args = message.GetList<Object>("Arguments");
 
                         var response = Client.CreateResponse(message, MessageType.COMMAND_RESPONSE);
-                        if (HandleCommand(cmd, args, response))
+                        if (HandleCommand(cnn, message, cmd, args, response))
                         {
                             Client.SendMessage(response);
                         }
