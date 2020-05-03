@@ -98,13 +98,13 @@ namespace Chetch.Services
         protected ClientConnection Client { get; set; } = null;
         protected String ClientName { get; set; } = null;
 
-        abstract protected ClientConnection ConnectClient();
+        abstract protected ClientConnection ConnectClient(String clientName);
         abstract public bool HandleCommand(Connection cnn, Message message, String command, List<Object> args, Message response);
         abstract public void HandleClientError(Connection cnn, Exception e);
 
-        public ChetchMessagingClient(String traceSourceName, String logName) : base(traceSourceName, logName)
+        public ChetchMessagingClient(String clientName, String traceSourceName, String logName) : base(traceSourceName, logName)
         {
-
+            ClientName = clientName;
         }
 
         override protected void OnStart(string[] args)
@@ -122,7 +122,7 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Connecting client to server");
             try
             {
-                Client = ConnectClient();
+                Client = ConnectClient(ClientName);
                 Client.HandleMessage += HendleClientMessage;
                 Client.HandleError += HandleClientError;
 
@@ -149,21 +149,47 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
         }
 
+        virtual public void AddCommandHelp(List<String> commandHelp)
+        {
+            commandHelp.Add("(h)elp: provides a list of client available service related commands");
+        }
+
         virtual public void HendleClientMessage(Connection cnn, Message message)
         {
             switch (message.Type)
             {
                 case MessageType.COMMAND:
-                    if (message.HasValue("Arguments"))
-                    {
-                        var cmd = message.Value;
-                        var args = message.GetList<Object>("Arguments");
+                    var cmd = message.Value;
+                    var args = message.HasValue("Arguments") ? message.GetList<Object>("Arguments") : new List<Object>();
 
-                        var response = Client.CreateResponse(message, MessageType.COMMAND_RESPONSE);
-                        if (HandleCommand(cnn, message, cmd, args, response))
-                        {
-                            Client.SendMessage(response);
-                        }
+                    var response = Client.CreateResponse(message, MessageType.COMMAND_RESPONSE);
+                    bool respond = true;
+                    switch (cmd)
+                    {
+                        case "h":
+                        case "help":
+                            List<String> help = new List<String>();
+                            AddCommandHelp(help);
+                            response.AddValue("Help", help);
+                            break;
+
+                        default:
+                            try
+                            {
+                                respond = HandleCommand(cnn, message, cmd, args, response);
+                            } catch (Exception e)
+                            {
+                                response.Type = MessageType.ERROR;
+                                response.Value = e.Message;
+                                respond = true;
+                            }
+                            break;
+                    }
+
+                    if (respond)
+                    {
+                        response.AddValue("OriginalCommand", cmd);
+                        Client.SendMessage(response);
                     }
                     break;
             }
