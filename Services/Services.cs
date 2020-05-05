@@ -149,6 +149,7 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
         }
 
+        //derived services can add to this help list
         virtual public void AddCommandHelp(List<String> commandHelp)
         {
             commandHelp.Add("(h)elp: provides a list of client available service related commands");
