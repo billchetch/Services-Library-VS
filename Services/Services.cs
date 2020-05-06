@@ -64,6 +64,7 @@ namespace Chetch.Services
 
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Creating messaging server");
             MServer = CreateServer();
+            
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Created messaging server: {0}", MServer.ID);
 
             try
@@ -123,8 +124,11 @@ namespace Chetch.Services
             try
             {
                 Client = ConnectClient(ClientName);
+                Client.Context = ClientConnection.ClientContext.SERVICE;
                 Client.HandleMessage += HendleClientMessage;
+                Client.ModifyMessage += ModifyClientMessage;
                 Client.HandleError += HandleClientError;
+
 
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
@@ -192,6 +196,16 @@ namespace Chetch.Services
                         response.AddValue("OriginalCommand", cmd);
                         Client.SendMessage(response);
                     }
+                    break;
+            }
+        }
+
+        virtual public void ModifyClientMessage(Connection cnn, Message message)
+        {
+            switch (message.Type)
+            {
+                case MessageType.STATUS_RESPONSE:
+                    message.AddValue("ServiceName", ServiceName);
                     break;
             }
         }
