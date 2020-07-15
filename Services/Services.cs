@@ -9,6 +9,7 @@ using System.Diagnostics;
 using Chetch.Utilities;
 using Chetch.Utilities.Config;
 using Chetch.Messaging;
+using System.Threading;
 
 namespace Chetch.Services
 {
@@ -44,6 +45,9 @@ namespace Chetch.Services
 
     abstract public class ChetchMessagingServer : ChetchService
     {
+        protected int maxRetryAttempts = 5;
+        protected int retryInterval = 10;
+
         protected Server MServer { get; set; } = null;
         
         public ChetchMessagingServer(String traceSourceName, String logName) : base(traceSourceName, logName)
@@ -66,17 +70,30 @@ namespace Chetch.Services
             MServer = CreateServer();
             
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Created messaging server: {0}", MServer.ID);
-
-            try
+            bool started = false;
+            int attempts = 0;
+            while (!started)
             {
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting messaging server {0}", MServer.ID);
-                MServer.Start();
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Started messaging server {0}", MServer.ID);
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
-            } catch (Exception e)
-            {
-                Tracing?.TraceEvent(TraceEventType.Error, 0, "{0} exception: {1}", e.GetType().ToString(), e.Message);
-                throw e;
+                try
+                {
+                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting messaging server {0}", MServer.ID);
+                    MServer.Start();
+                    started = true;
+                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Started messaging server {0}", MServer.ID);
+                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
+                }
+                catch (Exception e)
+                {
+                    Tracing?.TraceEvent(TraceEventType.Error, 0, "{0} exception: {1}", e.GetType().ToString(), e.Message);
+                    if (attempts++ >= maxRetryAttempts)
+                    {
+                        throw e;
+                    } else
+                    {
+                        Tracing?.TraceEvent(TraceEventType.Information, 0, "Retrying attempt {0} of {1} after {2} secs", attempts, maxRetryAttempts, retryInterval);
+                        Thread.Sleep(retryInterval*1000);
+                    }
+                }
             }
         }
 
@@ -125,10 +142,9 @@ namespace Chetch.Services
             {
                 Client = ConnectClient(ClientName);
                 Client.Context = ClientConnection.ClientContext.SERVICE;
-                Client.HandleMessage += HendleClientMessage;
+                Client.HandleMessage += HandleClientMessage;
                 Client.ModifyMessage += ModifyClientMessage;
                 Client.HandleError += HandleClientError;
-
 
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
@@ -159,13 +175,13 @@ namespace Chetch.Services
             commandHelp.Add("(h)elp: provides a list of client available service related commands");
         }
 
-        virtual public void HendleClientMessage(Connection cnn, Message message)
+        virtual public void HandleClientMessage(Connection cnn, Message message)
         {
             switch (message.Type)
             {
                 case MessageType.COMMAND:
                     var cmd = message.Value;
-                    var args = message.HasValue("Arguments") ? message.GetList<Object>("Arguments") : new List<Object>();
+                    var args = message.HasValue("Arguments") && message.GetValue("Arguments") != null ? message.GetList<Object>("Arguments") : new List<Object>();
 
                     var response = Client.CreateResponse(message, MessageType.COMMAND_RESPONSE);
                     bool respond = true;
