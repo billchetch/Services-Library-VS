@@ -10,11 +10,23 @@ using Chetch.Utilities;
 using Chetch.Utilities.Config;
 using Chetch.Messaging;
 using System.Threading;
+using System.Globalization;
 
 namespace Chetch.Services
 {
     abstract public class ChetchService : ServiceBase
     {
+        protected static String SUPPORTED_CULTURES = "en-GB,en-US";
+
+        static protected void AssertCultureInfo(CultureInfo ci)
+        {
+            String[] cultures = SUPPORTED_CULTURES.Split(',');
+            if (!cultures.Contains(ci.Name))
+            {
+                throw new Exception(ci.Name + " is not a supported culuture: " + SUPPORTED_CULTURES);
+            }
+        }
+        
         protected readonly String EVENT_LOG_NAME = null;
         protected TraceSource Tracing { get; set; } = null;
 
@@ -30,6 +42,14 @@ namespace Chetch.Services
             }
             Tracing = TraceSourceManager.GetInstance(traceSourceName);
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Created service with trace source {0} and event log {1}", traceSourceName, logName);
+
+            try
+            {
+                AssertCultureInfo(CultureInfo.CurrentCulture);
+            } catch (Exception e)
+            {
+                Tracing.TraceEvent(TraceEventType.Error, 0, e.Message);
+            }
         }
 
         public void TestStart(string[] args = null)
@@ -45,9 +65,6 @@ namespace Chetch.Services
 
     abstract public class ChetchMessagingServer : ChetchService
     {
-        protected int maxRetryAttempts = 5;
-        protected int retryInterval = 10;
-
         protected Server MServer { get; set; } = null;
         
         public ChetchMessagingServer(String traceSourceName, String logName) : base(traceSourceName, logName)
@@ -70,30 +87,17 @@ namespace Chetch.Services
             MServer = CreateServer();
             
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Created messaging server: {0}", MServer.ID);
-            bool started = false;
-            int attempts = 0;
-            while (!started)
+            try
             {
-                try
-                {
-                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting messaging server {0}", MServer.ID);
-                    MServer.Start();
-                    started = true;
-                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Started messaging server {0}", MServer.ID);
-                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
-                }
-                catch (Exception e)
-                {
-                    Tracing?.TraceEvent(TraceEventType.Error, 0, "{0} exception: {1}", e.GetType().ToString(), e.Message);
-                    if (attempts++ >= maxRetryAttempts)
-                    {
-                        throw e;
-                    } else
-                    {
-                        Tracing?.TraceEvent(TraceEventType.Information, 0, "Retrying attempt {0} of {1} after {2} secs", attempts, maxRetryAttempts, retryInterval);
-                        Thread.Sleep(retryInterval*1000);
-                    }
-                }
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting messaging server {0}", MServer.ID);
+                MServer.Start();
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Started messaging server {0}", MServer.ID);
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
+            }
+            catch (Exception e)
+            {
+                Tracing?.TraceEvent(TraceEventType.Error, 0, "{0} exception: {1}", e.GetType().ToString(), e.Message);
+                throw e;
             }
         }
 
@@ -120,6 +124,9 @@ namespace Chetch.Services
         abstract public bool HandleCommand(Connection cnn, Message message, String command, List<Object> args, Message response);
         abstract public void HandleClientError(Connection cnn, Exception e);
 
+        protected int maxRetryAttempts = 5;
+        protected int retryInterval = 10;
+
         public ChetchMessagingClient(String clientName, String traceSourceName, String logName) : base(traceSourceName, logName)
         {
             ClientName = clientName;
@@ -138,23 +145,36 @@ namespace Chetch.Services
             base.OnStart(args);
 
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Connecting client to server");
-            try
+            bool started = false;
+            int attempts = 0;
+            while (!started)
             {
-                Client = ConnectClient(ClientName);
-                Client.Context = ClientConnection.ClientContext.SERVICE;
-                Client.HandleMessage += HandleClientMessage;
-                Client.ModifyMessage += ModifyClientMessage;
-                Client.HandleError += HandleClientError;
-
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
-            }
-            catch (Exception e)
-            {
-                var ie = e.InnerException;
-                Tracing?.TraceEvent(TraceEventType.Error, 0, "{0}: {1} with inner exception {2}: {3}", e.GetType().ToString(), e.Message, ie == null ? "N/A" : ie.GetType().ToString(), ie == null ? "N/A" : ie.Message);
-                throw e;
-            }
+                try
+                {
+                    Client = ConnectClient(ClientName);
+                    Client.Context = ClientConnection.ClientContext.SERVICE;
+                    Client.HandleMessage += HandleClientMessage;
+                    Client.ModifyMessage += ModifyClientMessage;
+                    Client.HandleError += HandleClientError;
+                    started = true;
+                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
+                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
+                }
+                catch (Exception e)
+                {
+                    var ie = e.InnerException;
+                    Tracing?.TraceEvent(TraceEventType.Error, 0, "{0}: {1} with inner exception {2}: {3}", e.GetType().ToString(), e.Message, ie == null ? "N/A" : ie.GetType().ToString(), ie == null ? "N/A" : ie.Message);
+                    if (attempts++ >= maxRetryAttempts)
+                    {
+                        throw e;
+                    }
+                    else
+                    {
+                        Tracing?.TraceEvent(TraceEventType.Information, 0, "Retrying attempt {0} of {1} after {2} secs", attempts, maxRetryAttempts, retryInterval);
+                        Thread.Sleep(retryInterval * 1000);
+                    }
+                }
+            } //end retry loop
         }
 
         override protected void OnStop()
