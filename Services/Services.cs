@@ -132,7 +132,7 @@ namespace Chetch.Services
         protected ClientConnection Client { get; set; } = null;
         protected String ClientName { get; set; } = null;
 
-        abstract protected ClientConnection ConnectClient(String clientName);
+        abstract protected ClientConnection ConnectClient(String clientName, String connectionString);
         abstract public bool HandleCommand(Connection cnn, Message message, String command, List<Object> args, Message response);
         abstract public void HandleClientError(Connection cnn, Exception e);
 
@@ -159,11 +159,12 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Connecting client to server");
             bool started = false;
             int attempts = 0;
+            String connectionString = args != null && args.Length > 0 ? args[1] : null;
             while (!started)
             {
                 try
                 {
-                    Client = ConnectClient(ClientName);
+                    Client = ConnectClient(ClientName, connectionString);
                     Client.Context = ClientConnection.ClientContext.SERVICE;
                     Client.HandleMessage += HandleClientMessage;
                     Client.ModifyMessage += ModifyClientMessage;
