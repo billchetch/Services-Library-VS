@@ -159,7 +159,7 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Connecting client to server");
             bool started = false;
             int attempts = 0;
-            String connectionString = args != null && args.Length > 0 ? args[1] : null;
+            String connectionString = args != null && args.Length > 0 ? args[0] : null;
             while (!started)
             {
                 try
