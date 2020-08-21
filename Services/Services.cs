@@ -18,13 +18,12 @@ namespace Chetch.Services
     {
         protected static String SUPPORTED_CULTURES = "en-GB,en-US";
 
-        static protected void AssertCultureInfo(CultureInfo ci)
+        static protected bool IsSupportedCulture(CultureInfo ci)
         {
+            if (SUPPORTED_CULTURES == null || SUPPORTED_CULTURES.Length == 0) return true;
+
             String[] cultures = SUPPORTED_CULTURES.Split(',');
-            if (!cultures.Contains(ci.Name))
-            {
-                throw new Exception(ci.Name + " is not a supported culuture: " + SUPPORTED_CULTURES);
-            }
+            return cultures.Contains(ci.Name);
         }
         
         protected readonly String EVENT_LOG_NAME = null;
@@ -45,10 +44,23 @@ namespace Chetch.Services
 
             try
             {
-                AssertCultureInfo(CultureInfo.CurrentCulture);
+                CultureInfo defaultCultureInfo = System.Globalization.CultureInfo.DefaultThreadCurrentCulture;
+                CultureInfo currentCultureInfo = Thread.CurrentThread.CurrentCulture;
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Current CultureInfo {0}, Default CultureInfo {1}", currentCultureInfo.Name, defaultCultureInfo?.Name);
+                if (!IsSupportedCulture(currentCultureInfo) || !IsSupportedCulture(defaultCultureInfo))
+                {
+                    String cultureName = SUPPORTED_CULTURES.Split(',')[0];
+                    Tracing?.TraceEvent(TraceEventType.Warning, 0, "CultureInfo is not supported so changing to {0}", cultureName);
+
+                    CultureInfo supportedCultureInfo = new CultureInfo(cultureName);
+                    Thread.CurrentThread.CurrentCulture = supportedCultureInfo;
+                    System.Globalization.CultureInfo.DefaultThreadCurrentCulture = supportedCultureInfo;
+                }
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Current CultureInfo {0}, Default CultureInfo {1}", Thread.CurrentThread.CurrentCulture.Name, System.Globalization.CultureInfo.DefaultThreadCurrentCulture.Name);
             } catch (Exception e)
             {
                 Tracing.TraceEvent(TraceEventType.Error, 0, e.Message);
+                throw e;
             }
         }
 
