@@ -11,6 +11,7 @@ using Chetch.Utilities.Config;
 using Chetch.Messaging;
 using System.Threading;
 using System.Globalization;
+using System.Timers;
 
 namespace Chetch.Services
 {
@@ -131,13 +132,13 @@ namespace Chetch.Services
     {
         protected ClientConnection Client { get; set; } = null;
         protected String ClientName { get; set; } = null;
+        private String connectionString; //can be set in service arguments
 
         abstract protected ClientConnection ConnectClient(String clientName, String connectionString);
         abstract public bool HandleCommand(Connection cnn, Message message, String command, List<Object> args, Message response);
         abstract public void HandleClientError(Connection cnn, Exception e);
-
-        protected int maxRetryAttempts = 5;
-        protected int retryInterval = 10;
+        
+        private System.Timers.Timer _connectTimer;
 
         public ChetchMessagingClient(String clientName, String traceSourceName, String logName) : base(traceSourceName, logName)
         {
@@ -156,39 +157,15 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting service {0}", ServiceName);
             base.OnStart(args);
 
-            bool started = false;
-            int attempts = 0;
-            String connectionString = args != null && args.Length > 0 ? args[0] : null;
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Connecting client to server {0}", connectionString == null ? "localhost" : connectionString);
+            connectionString = args != null && args.Length > 0 ? args[0] : null;
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Start timer to connect client to server {0}", connectionString == null ? "localhost" : connectionString);
+            _connectTimer = new System.Timers.Timer();
+            _connectTimer.Interval = 2000;
+            _connectTimer.Elapsed += new ElapsedEventHandler(HandleConnectTimer);
+            _connectTimer.Start();
 
-            while (!started)
-            {
-                try
-                {
-                    Client = ConnectClient(ClientName, connectionString);
-                    Client.Context = ClientConnection.ClientContext.SERVICE;
-                    Client.HandleMessage += HandleClientMessage;
-                    Client.ModifyMessage += ModifyClientMessage;
-                    Client.HandleError += HandleClientError;
-                    started = true;
-                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
-                    Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
-                }
-                catch (Exception e)
-                {
-                    var ie = e.InnerException;
-                    Tracing?.TraceEvent(TraceEventType.Error, 0, "{0}: {1} with inner exception {2}: {3}", e.GetType().ToString(), e.Message, ie == null ? "N/A" : ie.GetType().ToString(), ie == null ? "N/A" : ie.Message);
-                    if (attempts++ >= maxRetryAttempts)
-                    {
-                        throw e;
-                    }
-                    else
-                    {
-                        Tracing?.TraceEvent(TraceEventType.Information, 0, "Retrying attempt {0} of {1} after {2} secs", attempts, maxRetryAttempts, retryInterval);
-                        Thread.Sleep(retryInterval * 1000);
-                    }
-                }
-            } //end retry loop
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Started service {0}", ServiceName);
+            
         }
 
         override protected void OnStop()
@@ -209,6 +186,26 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0} {1} ", cnn.Name, success);
         }
 
+        private void HandleConnectTimer(Object sender, ElapsedEventArgs ea)
+        {
+            _connectTimer.Stop();
+            try
+            {
+                Client = ConnectClient(ClientName, connectionString);
+                Client.Context = ClientConnection.ClientContext.SERVICE;
+                Client.HandleMessage += HandleClientMessage;
+                Client.ModifyMessage += ModifyClientMessage;
+                Client.HandleError += HandleClientError;
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Reconnected client {0} to server {1}", Client.Name, Client.ServerID);
+            }
+            catch (Exception e)
+            {
+                var ie = e.InnerException;
+                Tracing?.TraceEvent(TraceEventType.Error, 0, "{0}: {1} with inner exception {2}: {3}", e.GetType().ToString(), e.Message, ie == null ? "N/A" : ie.GetType().ToString(), ie == null ? "N/A" : ie.Message);
+                _connectTimer.Start();
+            }
+        }
+
         //derived services can add to this help list
         virtual public void AddCommandHelp(List<String> commandHelp)
         {
@@ -219,6 +216,12 @@ namespace Chetch.Services
         {
             switch (message.Type)
             {
+                case MessageType.SHUTDOWN:
+                    _connectTimer.Interval = 10000;
+                    _connectTimer.Start();
+                    Tracing?.TraceEvent(TraceEventType.Warning, 0, "Messaging server shutdown.... attempting to reconnect with interval {0}", _connectTimer.Interval);
+                    break;
+
                 case MessageType.COMMAND:
                     var cmd = message.Value;
                     var args = message.HasValue("Arguments") && message.GetValue("Arguments") != null ? message.GetList<Object>("Arguments") : new List<Object>();
