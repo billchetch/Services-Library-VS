@@ -271,7 +271,7 @@ namespace Chetch.Services
         }
 
         //wrapper for client
-        virtual public void Notify(Message message)
+        virtual public void Broadcast(Message message)
         {
             Client.Notify(message);
         }
