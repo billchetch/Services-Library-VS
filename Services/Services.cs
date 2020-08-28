@@ -191,12 +191,13 @@ namespace Chetch.Services
             _connectTimer.Stop();
             try
             {
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Trying to client {0} to {1}", ClientName, connectionString);
                 Client = ConnectClient(ClientName, connectionString);
                 Client.Context = ClientConnection.ClientContext.SERVICE;
                 Client.HandleMessage += HandleClientMessage;
                 Client.ModifyMessage += ModifyClientMessage;
                 Client.HandleError += HandleClientError;
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Reconnected client {0} to server {1}", Client.Name, Client.ServerID);
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
             }
             catch (Exception e)
             {
