@@ -180,10 +180,10 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
         }
 
-        virtual protected void OnClientConnect(bool success, ClientConnection cnn)
+        virtual protected void OnClientConnect(ClientConnection cnn)
         {
             //a hook for reconnections/disconnections
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0} {1} ", cnn.Name, success);
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0}", cnn?.Name);
         }
 
         private void HandleConnectTimer(Object sender, ElapsedEventArgs ea)
