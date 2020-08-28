@@ -203,6 +203,11 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
         }
 
+        virtual protected void OnClientConnect(bool success, ClientConnection cnn)
+        {
+            //a hook for reconnections/disconnections
+        }
+
         //derived services can add to this help list
         virtual public void AddCommandHelp(List<String> commandHelp)
         {
