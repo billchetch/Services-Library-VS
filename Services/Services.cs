@@ -269,5 +269,11 @@ namespace Chetch.Services
                     break;
             }
         }
+
+        //wrapper for client
+        virtual public void Notify(Message message)
+        {
+            Client.Notify(message);
+        }
     }
 }
