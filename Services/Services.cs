@@ -206,6 +206,7 @@ namespace Chetch.Services
         virtual protected void OnClientConnect(bool success, ClientConnection cnn)
         {
             //a hook for reconnections/disconnections
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0} {1} ", cnn.Name, success);
         }
 
         //derived services can add to this help list
