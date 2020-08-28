@@ -191,7 +191,7 @@ namespace Chetch.Services
             _connectTimer.Stop();
             try
             {
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Trying to client {0} to {1}", ClientName, connectionString);
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Trying to connect client {0} to {1}", ClientName, connectionString);
                 Client = ConnectClient(ClientName, connectionString);
                 Client.Context = ClientConnection.ClientContext.SERVICE;
                 Client.HandleMessage += HandleClientMessage;
