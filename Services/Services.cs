@@ -273,7 +273,10 @@ namespace Chetch.Services
         //wrapper for client
         virtual public void Broadcast(Message message)
         {
-            Client?.Notify(message);
+            if (Client != null && Client.IsConnected)
+            {
+                Client.Notify(message);
+            }
         }
     }
 }
