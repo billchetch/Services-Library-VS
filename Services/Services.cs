@@ -177,7 +177,9 @@ namespace Chetch.Services
             Client.Close();
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Closed client {0}", Client.Name);
 
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
+            if (_connectTimer != null) _connectTimer.Stop();
+
+             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
         }
 
         virtual protected void OnClientConnect(ClientConnection cnn)
@@ -262,19 +264,19 @@ namespace Chetch.Services
 
         virtual public void ModifyClientMessage(Connection cnn, Message message)
         {
-            switch (message.Type)
-            {
-                case MessageType.STATUS_RESPONSE:
-                    message.AddValue("ServiceName", ServiceName);
-                    break;
-            }
+            //a hook
         }
 
         //wrapper for client
         virtual public void Broadcast(Message message)
         {
-            if (message != null && Client != null && Client.IsConnected && Client.CanNotify(message.Type))
+            if (message != null && Client != null && Client.IsConnected)
             {
+                if((message.Target != null && message.Target != String.Empty) && !Client.HasSubscriber(message.Target) || !Client.CanNotify(message.Type))
+                {
+                    Client.SendMessage(message);
+                }
+
                 Client.Notify(message);
             }
         }
