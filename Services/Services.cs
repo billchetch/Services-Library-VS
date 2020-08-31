@@ -185,7 +185,7 @@ namespace Chetch.Services
         virtual protected void OnClientConnect(ClientConnection cnn)
         {
             Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0}", cnn?.Name);
-            if (_subscriptions.Count > 0) {
+            if (_subscriptions.Count > 0 && cnn.Name == Client.Name) {
                 String cs = String.Empty;
                 foreach (String c in _subscriptions)
                 {
