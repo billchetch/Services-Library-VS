@@ -173,9 +173,12 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopping service {0}", ServiceName);
             base.OnStop();
 
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Closing client {0}", Client.Name);
-            Client.Close();
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Closed client {0}", Client.Name);
+            if (Client != null)
+            {
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Closing client {0}", Client.Name);
+                Client.Close();
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Closed client {0}", Client.Name);
+            }
 
             if (_connectTimer != null) _connectTimer.Stop();
 
@@ -185,7 +188,7 @@ namespace Chetch.Services
         virtual protected void OnClientConnect(ClientConnection cnn)
         {
             Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0}", cnn?.Name);
-            if (_subscriptions.Count > 0 && cnn.Name == Client.Name) {
+            if (_subscriptions.Count > 0 && cnn.Name == ClientName) {
                 String cs = String.Empty;
                 foreach (String c in _subscriptions)
                 {
