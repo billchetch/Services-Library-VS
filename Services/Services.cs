@@ -195,7 +195,7 @@ namespace Chetch.Services
                     cs += (cs == String.Empty ? "" : ",") + c;
                 }
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: Subscribing to {0}", cs);
-                Client.Subscribe(cs);
+                cnn.Subscribe(cs);
             }
         }
 
