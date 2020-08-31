@@ -133,13 +133,13 @@ namespace Chetch.Services
         protected ClientConnection Client { get; set; } = null;
         protected String ClientName { get; set; } = null;
         private String connectionString; //can be set in service arguments
+        private System.Timers.Timer _connectTimer;
+        private List<String> _subscriptions = new List<String>();
 
         abstract protected ClientConnection ConnectClient(String clientName, String connectionString);
         abstract public bool HandleCommand(Connection cnn, Message message, String command, List<Object> args, Message response);
         abstract public void HandleClientError(Connection cnn, Exception e);
         
-        private System.Timers.Timer _connectTimer;
-
         public ChetchMessagingClient(String clientName, String traceSourceName, String logName) : base(traceSourceName, logName)
         {
             ClientName = clientName;
@@ -184,8 +184,16 @@ namespace Chetch.Services
 
         virtual protected void OnClientConnect(ClientConnection cnn)
         {
-            //a hook for reconnections/disconnections
             Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0}", cnn?.Name);
+            if (_subscriptions.Count > 0) {
+                String cs = String.Empty;
+                foreach (String c in _subscriptions)
+                {
+                    cs += (cs == String.Empty ? "" : ",") + c;
+                }
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: Subscribing to {0}", cs);
+                Client.Subscribe(cs);
+            }
         }
 
         private void HandleConnectTimer(Object sender, ElapsedEventArgs ea)
@@ -207,6 +215,20 @@ namespace Chetch.Services
                 Tracing?.TraceEvent(TraceEventType.Error, 0, "{0}: {1} with inner exception {2}: {3}", e.GetType().ToString(), e.Message, ie == null ? "N/A" : ie.GetType().ToString(), ie == null ? "N/A" : ie.Message);
                 _connectTimer.Start();
             }
+        }
+
+        protected void Subscribe(String clientName)
+        {
+            clientName = clientName.Trim();
+            if (!_subscriptions.Contains(clientName))_subscriptions.Add(clientName);
+            if (Client.IsConnected) Client.Subscribe(clientName);
+        }
+
+        protected void Unsubscribe(String clientName)
+        {
+            clientName = clientName.Trim();
+            if (_subscriptions.Contains(clientName)) _subscriptions.Remove(clientName);
+            if (Client.IsConnected) Client.Unsubscribe(clientName);
         }
 
         //derived services can add to this help list
