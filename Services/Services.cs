@@ -221,14 +221,14 @@ namespace Chetch.Services
         {
             clientName = clientName.Trim();
             if (!_subscriptions.Contains(clientName))_subscriptions.Add(clientName);
-            if (Client.IsConnected) Client.Subscribe(clientName);
+            if (Client != null && Client.IsConnected) Client.Subscribe(clientName);
         }
 
         protected void Unsubscribe(String clientName)
         {
             clientName = clientName.Trim();
             if (_subscriptions.Contains(clientName)) _subscriptions.Remove(clientName);
-            if (Client.IsConnected) Client.Unsubscribe(clientName);
+            if (Client != null && Client.IsConnected) Client.Unsubscribe(clientName);
         }
 
         //derived services can add to this help list
