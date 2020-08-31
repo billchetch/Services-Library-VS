@@ -134,7 +134,7 @@ namespace Chetch.Services
         protected String ClientName { get; set; } = null;
         private String connectionString; //can be set in service arguments
         private System.Timers.Timer _connectTimer;
-        private List<String> _subscriptions = new List<String>();
+        private List<MessageFilter> _subscriptions = new List<MessageFilter>();
 
         abstract protected ClientConnection ConnectClient(String clientName, String connectionString);
         abstract public bool HandleCommand(Connection cnn, Message message, String command, List<Object> args, Message response);
@@ -189,13 +189,11 @@ namespace Chetch.Services
         {
             Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0}", cnn?.Name);
             if (_subscriptions.Count > 0 && cnn.Name == ClientName) {
-                String cs = String.Empty;
-                foreach (String c in _subscriptions)
+                foreach (MessageFilter f in _subscriptions)
                 {
-                    cs += (cs == String.Empty ? "" : ",") + c;
+                    Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: Subscribing to {0}", f.Sender);
+                    cnn.Subscribe(f);
                 }
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: Subscribing to {0}", cs);
-                cnn.Subscribe(cs);
             }
         }
 
@@ -220,17 +218,30 @@ namespace Chetch.Services
             }
         }
 
-        protected void Subscribe(String clientName)
+        protected void Subscribe(MessageFilter messageFilter)
         {
-            clientName = clientName.Trim();
-            if (!_subscriptions.Contains(clientName))_subscriptions.Add(clientName);
-            if (Client != null && Client.IsConnected) Client.Subscribe(clientName);
+            if(messageFilter.Sender == null || messageFilter.Sender == String.Empty)
+            {
+                throw new Exception("Message filter must have a Sender value");
+            }
+
+            _subscriptions.Add(messageFilter);
+            if (Client != null && Client.IsConnected) Client.Subscribe(messageFilter);
         }
 
         protected void Unsubscribe(String clientName)
         {
             clientName = clientName.Trim();
-            if (_subscriptions.Contains(clientName)) _subscriptions.Remove(clientName);
+            List<MessageFilter> toRemove = new List<MessageFilter>();
+            foreach(MessageFilter f in _subscriptions)
+            {
+                if (f.Sender.Equals(clientName)) toRemove.Add(f);
+            }
+            foreach(MessageFilter f in toRemove)
+            {
+                _subscriptions.Remove(f);
+            }
+
             if (Client != null && Client.IsConnected) Client.Unsubscribe(clientName);
         }
 
