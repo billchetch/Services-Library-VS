@@ -333,5 +333,18 @@ namespace Chetch.Services
                 Client.SendMessage(message);
             }
         }
+
+        public void SendCommand(String target, String command, params Object[] args)
+        {
+            SendCommand(target, command, new List<Object>(args));
+        }
+
+        public void SendCommand(String target, String command, List<Object> args)
+        {
+            if (Client != null && Client.IsConnected)
+            {
+                Client.SendCommand(target, command, args);
+            }
+        }
     } //end class
 }
