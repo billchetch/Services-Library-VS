@@ -309,7 +309,7 @@ namespace Chetch.Services
 
         virtual public void ModifyClientMessage(Connection cnn, Message message)
         {
-            //a hook
+            //a hook for outgoing messages (can be directed or broadcast)
         }
 
         //wrapper for client
@@ -328,7 +328,10 @@ namespace Chetch.Services
 
         public void SendMessage(Message message)
         {
-            Client.SendMessage(message);
+            if(Client != null && Client.IsConnected)
+            {
+                Client.SendMessage(message);
+            }
         }
-    }
+    } //end class
 }
