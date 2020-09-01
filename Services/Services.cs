@@ -218,6 +218,15 @@ namespace Chetch.Services
             }
         }
 
+        protected bool IsSubscribedTo(String clientName)
+        {
+            foreach (MessageFilter f in _subscriptions)
+            {
+                if (f.Sender.Equals(clientName))return true;
+            }
+            return false;
+        }
+
         protected void Subscribe(MessageFilter messageFilter)
         {
             if(messageFilter.Sender == null || messageFilter.Sender == String.Empty)
