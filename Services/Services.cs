@@ -325,5 +325,10 @@ namespace Chetch.Services
                 Client.Notify(message);
             }
         }
+
+        public void SendMessage(Message message)
+        {
+            Client.SendMessage(message);
+        }
     }
 }
