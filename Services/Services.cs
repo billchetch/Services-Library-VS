@@ -260,6 +260,25 @@ namespace Chetch.Services
             commandHelp.Add("(h)elp: provides a list of client available service related commands");
         }
 
+        virtual protected Message CreateResponse(Message message)
+        {
+            if (Client == null || !Client.IsConnected)
+            {
+                throw new Exception(String.Format("Cannot create response for message (type={0}) from {1} because Client is not available", message.Type, message.Sender));
+            }
+
+            MessageType mt = MessageType.NOT_SET;
+            switch (message.Type)
+            {
+                case MessageType.COMMAND:
+                    mt = MessageType.COMMAND_RESPONSE;
+                    break;
+            }
+
+            Message response = Client.CreateResponse(message, mt);
+            return response;
+        }
+
         virtual public void HandleClientMessage(Connection cnn, Message message)
         {
             switch (message.Type)
@@ -274,7 +293,7 @@ namespace Chetch.Services
                     var cmd = message.Value;
                     var args = message.HasValue("Arguments") && message.GetValue("Arguments") != null ? message.GetList<Object>("Arguments") : new List<Object>();
 
-                    var response = Client.CreateResponse(message, MessageType.COMMAND_RESPONSE);
+                    var response = CreateResponse(message);
                     bool respond = true;
                     switch (cmd)
                     {
