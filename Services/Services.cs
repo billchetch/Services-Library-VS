@@ -320,7 +320,7 @@ namespace Chetch.Services
                     if (respond)
                     {
                         response.AddValue("OriginalCommand", cmd);
-                        Client.SendMessage(response);
+                        SendMessage(response);
                     }
                     break;
             }
