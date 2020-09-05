@@ -307,6 +307,7 @@ namespace Chetch.Services
                     {
                         case "h":
                         case "help":
+                            CommandHelp.Clear();
                             AddCommandHelp();
                             response.AddValue("Help", CommandHelp);
                             break;
