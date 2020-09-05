@@ -135,6 +135,8 @@ namespace Chetch.Services
         private String connectionString; //can be set in service arguments
         private System.Timers.Timer _connectTimer;
         private List<MessageFilter> _subscriptions = new List<MessageFilter>();
+        protected List<String> CommandHelp = new List<String>();
+
 
         abstract protected ClientConnection ConnectClient(String clientName, String connectionString);
         abstract public bool HandleCommand(Connection cnn, Message message, String command, List<Object> args, Message response);
@@ -255,9 +257,15 @@ namespace Chetch.Services
         }
 
         //derived services can add to this help list
-        virtual public void AddCommandHelp(List<String> commandHelp)
+        protected void AddCommandHelp(String command, String description)
         {
-            commandHelp.Add("(h)elp: provides a list of client available service related commands");
+            CommandHelp.Add(String.Format("{0}: {1}", command, description));
+        }
+
+
+        virtual public void AddCommandHelp()
+        {
+            AddCommandHelp("(h)elp", "provides a list of client available service related commands");
         }
 
         virtual protected Message CreateResponse(Message message)
@@ -299,9 +307,8 @@ namespace Chetch.Services
                     {
                         case "h":
                         case "help":
-                            List<String> help = new List<String>();
-                            AddCommandHelp(help);
-                            response.AddValue("Help", help);
+                            AddCommandHelp();
+                            response.AddValue("Help", CommandHelp);
                             break;
 
                         default:
