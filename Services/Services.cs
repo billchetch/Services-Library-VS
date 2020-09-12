@@ -47,8 +47,9 @@ namespace Chetch.Services
             {
                 CultureInfo defaultCultureInfo = System.Globalization.CultureInfo.DefaultThreadCurrentCulture;
                 CultureInfo currentCultureInfo = Thread.CurrentThread.CurrentCulture;
+                if (defaultCultureInfo == null && currentCultureInfo == null) throw new Exception("Both default and current CultureInfo are null!");
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "Current CultureInfo {0}, Default CultureInfo {1}", currentCultureInfo.Name, defaultCultureInfo?.Name);
-                if (!IsSupportedCulture(currentCultureInfo) || !IsSupportedCulture(defaultCultureInfo))
+                if ((currentCultureInfo != null && !IsSupportedCulture(currentCultureInfo)) || (defaultCultureInfo != null && !IsSupportedCulture(defaultCultureInfo)))
                 {
                     String cultureName = SUPPORTED_CULTURES.Split(',')[0];
                     Tracing?.TraceEvent(TraceEventType.Warning, 0, "CultureInfo is not supported so changing to {0}", cultureName);
