@@ -58,7 +58,7 @@ namespace Chetch.Services
                     Thread.CurrentThread.CurrentCulture = supportedCultureInfo;
                     System.Globalization.CultureInfo.DefaultThreadCurrentCulture = supportedCultureInfo;
                 }
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Current CultureInfo {0}, Default CultureInfo {1}", Thread.CurrentThread.CurrentCulture.Name, System.Globalization.CultureInfo.DefaultThreadCurrentCulture.Name);
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Current CultureInfo {0}, Default CultureInfo {1}", Thread.CurrentThread.CurrentCulture?.Name, System.Globalization.CultureInfo.DefaultThreadCurrentCulture?.Name);
             } catch (Exception e)
             {
                 Tracing.TraceEvent(TraceEventType.Error, 0, e.Message);
