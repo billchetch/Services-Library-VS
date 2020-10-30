@@ -40,8 +40,12 @@ namespace Chetch.Services
                     throw new Exception("Newly created event log sources.  Restart required");
                 }
             }
-            Tracing = TraceSourceManager.GetInstance(traceSourceName);
-            Tracing?.TraceEvent(TraceEventType.Information, 0, "Created service with trace source {0} and event log {1}", traceSourceName, logName);
+            
+            if (traceSourceName != null)
+            {
+                Tracing = TraceSourceManager.GetInstance(traceSourceName);
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Created service with trace source {0} and event log {1}", traceSourceName, logName);
+            }
 
             try
             {
