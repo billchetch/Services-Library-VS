@@ -19,7 +19,10 @@ namespace Chetch.Services
         {
             //client manager wtih default connection localhost
             var clientMgr = new TCPClientManager(OnClientConnect);
-            clientMgr.Tracing = Chetch.Utilities.Config.TraceSourceManager.GetInstance(_cmSourceName);
+            if (_cmSourceName != null)
+            {
+                clientMgr.Tracing = Chetch.Utilities.Config.TraceSourceManager.GetInstance(_cmSourceName);
+            }
             clientMgr.AddServer("default", connectionString == null ? TCPServer.LocalCS(TCPMessagingServer.CONNECTION_REQUEST_PORT) : connectionString);
             var client = clientMgr.Connect(clientName, 10000);
             return client;
