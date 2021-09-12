@@ -189,7 +189,7 @@ namespace Chetch.Services
 
             if (_connectTimer != null) _connectTimer.Stop();
 
-             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
+            Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped service {0}", ServiceName);
         }
 
         virtual protected void OnClientConnect(ClientConnection cnn)
