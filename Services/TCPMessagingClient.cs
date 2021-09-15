@@ -15,7 +15,7 @@ namespace Chetch.Services
             _cmSourceName = cmSourceName;
         }
 
-        protected override ClientConnection ConnectClient(String clientName, String connectionString)
+        protected override ClientConnection ConnectClient(String clientName, String connectionString, String authToken)
         {
             //client manager wtih default connection localhost
             var clientMgr = new TCPClientManager(OnClientConnect);
@@ -24,7 +24,7 @@ namespace Chetch.Services
                 clientMgr.Tracing = Chetch.Utilities.Config.TraceSourceManager.GetInstance(_cmSourceName);
             }
             clientMgr.AddServer("default", connectionString == null ? TCPServer.LocalCS(TCPMessagingServer.CONNECTION_REQUEST_PORT) : connectionString);
-            var client = clientMgr.Connect(clientName, 10000);
+            var client = clientMgr.Connect(clientName, 10000, authToken);
             return client;
         }
     }

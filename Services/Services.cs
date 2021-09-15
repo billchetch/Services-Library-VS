@@ -146,7 +146,7 @@ namespace Chetch.Services
         protected List<String> CommandHelp = new List<String>();
 
 
-        abstract protected ClientConnection ConnectClient(String clientName, String connectionString);
+        abstract protected ClientConnection ConnectClient(String clientName, String connectionString, String authToken);
         abstract public bool HandleCommand(Connection cnn, Message message, String command, List<ValueType> args, Message response);
         abstract public void HandleClientError(Connection cnn, Exception e);
         
@@ -199,10 +199,21 @@ namespace Chetch.Services
         {
             Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0}", cnn?.Name);
 
-            if(cnn.AuthToken != null && Settings != null)
+            if(cnn.AuthToken != null)
             {
-                Settings[CMC_AUTH_TOKEN_SETTINGS_KEY] = cnn.AuthToken;
-                Settings.Save();
+                if (Settings == null)
+                {
+                    Tracing?.TraceEvent(TraceEventType.Warning, 0, "OnClientConnect: Connction has provided an auth token but the Settings file property is null so the token cannot be saved"); ;
+                }
+                else if (!Settings.Context.ContainsKey(CMC_AUTH_TOKEN_SETTINGS_KEY))
+                {
+                    Tracing?.TraceEvent(TraceEventType.Warning, 0, "OnClientConnect: Connction has provided an auth token but there is no {0} setting to save it to", CMC_AUTH_TOKEN_SETTINGS_KEY);
+                }
+                else
+                {
+                    Settings[CMC_AUTH_TOKEN_SETTINGS_KEY] = cnn.AuthToken;
+                    Settings.Save();
+                }
             }
 
             if (_subscriptions.Count > 0 && cnn.Name == ClientName) {
@@ -220,11 +231,25 @@ namespace Chetch.Services
             try
             {
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "Trying to connect client {0} to {1}", ClientName, connectionString);
-                Client = ConnectClient(ClientName, connectionString);
+                String authToken = null;
+                if(Settings != null)
+                {
+                    if (!Settings.Context.ContainsKey(CMC_AUTH_TOKEN_SETTINGS_KEY))
+                    {
+                        Tracing?.TraceEvent(TraceEventType.Warning, 0, "Cannot connect using auth token as there is no {0} setting to read it from", CMC_AUTH_TOKEN_SETTINGS_KEY);
+                    } 
+                    else
+                    {
+                        authToken = Settings[CMC_AUTH_TOKEN_SETTINGS_KEY]?.ToString();
+                    }
+                }
+
+                Client = ConnectClient(ClientName, connectionString, authToken);
                 Client.Context = ClientConnection.ClientContext.SERVICE;
                 Client.HandleMessage += HandleClientMessage;
                 Client.ModifyMessage += ModifyClientMessage;
                 Client.HandleError += HandleClientError;
+
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "Connected client {0} to server {1}", Client.Name, Client.ServerID);
             }
             catch (Exception e)
