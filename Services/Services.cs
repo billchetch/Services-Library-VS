@@ -30,6 +30,8 @@ namespace Chetch.Services
         protected readonly String EVENT_LOG_NAME = null;
         protected TraceSource Tracing { get; set; } = null;
 
+        protected System.Configuration.ApplicationSettingsBase Settings { get; set; } = null;
+
         public ChetchService(String traceSourceName, String logName)
         {
             if (logName != null)
@@ -135,6 +137,7 @@ namespace Chetch.Services
 
     abstract public class ChetchMessagingClient : ChetchService
     {
+        protected const String CMC_AUTH_TOKEN_SETTINGS_KEY = "CMCAuthToken";
         protected ClientConnection Client { get; set; } = null;
         protected String ClientName { get; set; } = null;
         private String connectionString; //can be set in service arguments
@@ -195,6 +198,13 @@ namespace Chetch.Services
         virtual protected void OnClientConnect(ClientConnection cnn)
         {
             Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: {0}", cnn?.Name);
+
+            if(cnn.AuthToken != null && Settings != null)
+            {
+                Settings[CMC_AUTH_TOKEN_SETTINGS_KEY] = cnn.AuthToken;
+                Settings.Save();
+            }
+
             if (_subscriptions.Count > 0 && cnn.Name == ClientName) {
                 foreach (MessageFilter f in _subscriptions)
                 {
