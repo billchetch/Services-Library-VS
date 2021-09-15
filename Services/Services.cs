@@ -203,16 +203,18 @@ namespace Chetch.Services
             {
                 if (Settings == null)
                 {
-                    Tracing?.TraceEvent(TraceEventType.Warning, 0, "OnClientConnect: Connction has provided an auth token but the Settings file property is null so the token cannot be saved"); ;
-                }
-                else if (!Settings.Context.ContainsKey(CMC_AUTH_TOKEN_SETTINGS_KEY))
-                {
-                    Tracing?.TraceEvent(TraceEventType.Warning, 0, "OnClientConnect: Connction has provided an auth token but there is no {0} setting to save it to", CMC_AUTH_TOKEN_SETTINGS_KEY);
+                    Tracing?.TraceEvent(TraceEventType.Warning, 0, "OnClientConnect: Connction has provided an auth token but the Settings file property is null so the token cannot be saved");
                 }
                 else
                 {
-                    Settings[CMC_AUTH_TOKEN_SETTINGS_KEY] = cnn.AuthToken;
-                    Settings.Save();
+                    try
+                    {
+                        Settings[CMC_AUTH_TOKEN_SETTINGS_KEY] = cnn.AuthToken;
+                        Settings.Save();
+                    } catch (Exception e)
+                    {
+                        Tracing?.TraceEvent(TraceEventType.Warning, 0, "OnClientConnect: Exception thrown when trying to save auth token to setting {0}: {1}", CMC_AUTH_TOKEN_SETTINGS_KEY, e.Message);
+                    }
                 }
             }
 
@@ -234,13 +236,13 @@ namespace Chetch.Services
                 String authToken = null;
                 if(Settings != null)
                 {
-                    if (!Settings.Context.ContainsKey(CMC_AUTH_TOKEN_SETTINGS_KEY))
-                    {
-                        Tracing?.TraceEvent(TraceEventType.Warning, 0, "Cannot connect using auth token as there is no {0} setting to read it from", CMC_AUTH_TOKEN_SETTINGS_KEY);
-                    } 
-                    else
+                    try
                     {
                         authToken = Settings[CMC_AUTH_TOKEN_SETTINGS_KEY]?.ToString();
+                    } 
+                    catch (Exception e)
+                    {
+                        Tracing?.TraceEvent(TraceEventType.Error, 0, "Exception when getting setting {0}: {1}", CMC_AUTH_TOKEN_SETTINGS_KEY, e.Message);
                     }
                 }
 
