@@ -239,6 +239,7 @@ namespace Chetch.Services
                     try
                     {
                         authToken = Settings[CMC_AUTH_TOKEN_SETTINGS_KEY]?.ToString();
+                        if (authToken == String.Empty) authToken = null;
                     } 
                     catch (Exception e)
                     {
