@@ -209,6 +209,7 @@ namespace Chetch.Services
                 {
                     try
                     {
+                        //NOTE: Important! The setting must be of User Scope for this to save
                         Settings[CMC_AUTH_TOKEN_SETTINGS_KEY] = cnn.AuthToken;
                         Settings.Save();
                     } catch (Exception e)
@@ -239,7 +240,15 @@ namespace Chetch.Services
                     try
                     {
                         authToken = Settings[CMC_AUTH_TOKEN_SETTINGS_KEY]?.ToString();
-                        if (authToken == String.Empty) authToken = null;
+                        if (authToken == String.Empty)
+                        {
+                            authToken = null;
+                            Tracing?.TraceEvent(TraceEventType.Warning, 0, "If auth token setting persists in being empty ensure that the scope is set to User");
+                        } else
+                        {
+                            Tracing?.TraceEvent(TraceEventType.Information, 0, "Successfully retrieved auth token");
+
+                        }
                     } 
                     catch (Exception e)
                     {
