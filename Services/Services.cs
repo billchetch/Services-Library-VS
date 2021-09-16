@@ -138,6 +138,8 @@ namespace Chetch.Services
     abstract public class ChetchMessagingClient : ChetchService
     {
         protected const String CMC_AUTH_TOKEN_SETTINGS_KEY = "CMCAuthToken";
+        protected const String CMC_AUTH_TOKEN_ENCRYPTION_SEED = "AT";
+
         protected ClientConnection Client { get; set; } = null;
         protected String ClientName { get; set; } = null;
         private String connectionString; //can be set in service arguments
@@ -210,7 +212,8 @@ namespace Chetch.Services
                     try
                     {
                         //NOTE: Important! The setting must be of User Scope for this to save
-                        Settings[CMC_AUTH_TOKEN_SETTINGS_KEY] = cnn.AuthToken;
+                        String encryptedAuthToken = Chetch.Utilities.BasicEncryption.Encrypt(cnn.AuthToken, CMC_AUTH_TOKEN_ENCRYPTION_SEED);
+                        Settings[CMC_AUTH_TOKEN_SETTINGS_KEY] = encryptedAuthToken;
                         Settings.Save();
                     } catch (Exception e)
                     {
@@ -239,13 +242,14 @@ namespace Chetch.Services
                 {
                     try
                     {
-                        authToken = Settings[CMC_AUTH_TOKEN_SETTINGS_KEY]?.ToString();
-                        if (authToken == String.Empty)
+                        String encryptedAuthToken = Settings[CMC_AUTH_TOKEN_SETTINGS_KEY]?.ToString();
+                        if (String.IsNullOrEmpty(encryptedAuthToken))
                         {
                             authToken = null;
                             Tracing?.TraceEvent(TraceEventType.Warning, 0, "If auth token setting persists in being empty ensure that the scope is set to User");
                         } else
                         {
+                            authToken = Chetch.Utilities.BasicEncryption.Decrypt((String)encryptedAuthToken, CMC_AUTH_TOKEN_ENCRYPTION_SEED);
                             Tracing?.TraceEvent(TraceEventType.Information, 0, "Successfully retrieved auth token");
 
                         }
