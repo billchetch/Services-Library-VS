@@ -78,7 +78,10 @@ namespace Chetch.Services
 
         protected override void OnStart(string[] args)
         {
-            StartArgs = Utilities.Format.ParsCommandLineArguments(args);
+            if (args != null)
+            {
+                StartArgs = Utilities.Format.ParsCommandLineArguments(args);
+            }
             if (StartArgs.ContainsKey(RESET_SETTINGS_START_ARG) && Settings != null)
             {
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "Start argument request to reset settings");
