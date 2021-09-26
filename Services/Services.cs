@@ -195,7 +195,7 @@ namespace Chetch.Services
             {
                 try
                 {
-                    connectionString = Settings[CMC_CONNECTION_STRING_START_ARG]?.ToString();
+                    connectionString = Settings[CMC_CONNECTION_STRING_SETTINGS_KEY]?.ToString();
                     if (connectionString == String.Empty) connectionString = null;
                 } catch(Exception)
                 {
