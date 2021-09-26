@@ -276,7 +276,6 @@ namespace Chetch.Services
             _connectTimer.Stop();
             try
             {
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Trying to connect client {0} to server {1}", ClientName, connectionString);
                 String authToken = null;
                 if(Settings != null)
                 {
@@ -302,6 +301,7 @@ namespace Chetch.Services
                     }
                     
                 }
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Trying to connect client {0} to server {1}, using AuthToken = {2}", ClientName, connectionString, authToken == null ? "NO" : "YES");
 
                 Client = ConnectClient(ClientName, connectionString, authToken);
                 Client.Context = ClientConnection.ClientContext.SERVICE;
