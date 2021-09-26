@@ -18,6 +18,8 @@ namespace Chetch.Services
     abstract public class ChetchService : ServiceBase
     {
         protected static String SUPPORTED_CULTURES = "en-GB,en-US";
+        
+        public const String RESET_SETTINGS_START_ARG = "reset-settings";
 
         static protected bool IsSupportedCulture(CultureInfo ci)
         {
@@ -29,6 +31,8 @@ namespace Chetch.Services
         
         protected readonly String EVENT_LOG_NAME = null;
         protected TraceSource Tracing { get; set; } = null;
+
+        protected Dictionary<String, String> StartArgs { get; set;  } = new Dictionary<String, String>();
 
         protected System.Configuration.ApplicationSettingsBase Settings { get; set; } = null;
 
@@ -70,6 +74,18 @@ namespace Chetch.Services
                 Tracing.TraceEvent(TraceEventType.Error, 0, e.Message);
                 throw e;
             }
+        }
+
+        protected override void OnStart(string[] args)
+        {
+            StartArgs = Utilities.Format.ParsCommandLineArguments(args);
+            if (StartArgs.ContainsKey(RESET_SETTINGS_START_ARG) && Settings != null)
+            {
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Start argument request to reset settings");
+                Settings.Reset();
+                Settings.Save();
+            }
+            base.OnStart(args);
         }
 
         public void TestStart(string[] args = null)
@@ -137,7 +153,10 @@ namespace Chetch.Services
 
     abstract public class ChetchMessagingClient : ChetchService
     {
-        protected const String CMC_AUTH_TOKEN_SETTINGS_KEY = "CMCAuthToken";
+        public const String CMC_AUTH_TOKEN_SETTINGS_KEY = "CMCAuthToken";
+        public const String CMC_CONNECTION_STRING_SETTINGS_KEY = "CMCConnectionString";
+        public const String CMC_CONNECTION_STRING_START_ARG = "cmc-connection-string";
+
         protected const String CMC_AUTH_TOKEN_ENCRYPTION_SEED = "AT";
 
         protected ClientConnection Client { get; set; } = null;
@@ -159,7 +178,7 @@ namespace Chetch.Services
 
         override protected void OnStart(string[] args)
         {
-            if(ClientName == null)
+            if (ClientName == null)
             {
                 var msg = "Cannot start service as no Client Name provided";
                 Tracing?.TraceEvent(TraceEventType.Error, 0, msg);
@@ -169,7 +188,25 @@ namespace Chetch.Services
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Starting service {0}", ServiceName);
             base.OnStart(args);
 
-            connectionString = args != null && args.Length > 0 ? args[0] : null;
+            if (StartArgs.ContainsKey(CMC_CONNECTION_STRING_START_ARG))
+            {
+                connectionString = StartArgs[CMC_CONNECTION_STRING_START_ARG];
+            } else if (Settings != null) 
+            {
+                try
+                {
+                    connectionString = Settings[CMC_CONNECTION_STRING_START_ARG]?.ToString();
+                    if (connectionString == String.Empty) connectionString = null;
+                } catch(Exception)
+                {
+                    Tracing?.TraceEvent(TraceEventType.Warning, 0, "Settings does not contain key {0}", CMC_CONNECTION_STRING_START_ARG);
+                }
+            } else
+            {
+                connectionString = null;
+            }
+            
+            
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Start timer to connect client to server {0}", connectionString == null ? "localhost" : connectionString);
             _connectTimer = new System.Timers.Timer();
             _connectTimer.Interval = 2000;
@@ -236,10 +273,11 @@ namespace Chetch.Services
             _connectTimer.Stop();
             try
             {
-                Tracing?.TraceEvent(TraceEventType.Information, 0, "Trying to connect client {0} to {1}", ClientName, connectionString);
+                Tracing?.TraceEvent(TraceEventType.Information, 0, "Trying to connect client {0} to server {1}", ClientName, connectionString);
                 String authToken = null;
                 if(Settings != null)
                 {
+                   
                     try
                     {
                         String encryptedAuthToken = Settings[CMC_AUTH_TOKEN_SETTINGS_KEY]?.ToString();
@@ -247,17 +285,19 @@ namespace Chetch.Services
                         {
                             authToken = null;
                             Tracing?.TraceEvent(TraceEventType.Warning, 0, "If auth token setting persists in being empty ensure that the scope is set to User");
-                        } else
+                        }
+                        else
                         {
                             authToken = Chetch.Utilities.BasicEncryption.Decrypt((String)encryptedAuthToken, CMC_AUTH_TOKEN_ENCRYPTION_SEED);
                             Tracing?.TraceEvent(TraceEventType.Information, 0, "Successfully retrieved auth token");
 
                         }
-                    } 
+                    }
                     catch (Exception e)
                     {
                         Tracing?.TraceEvent(TraceEventType.Error, 0, "Exception when getting setting {0}: {1}", CMC_AUTH_TOKEN_SETTINGS_KEY, e.Message);
                     }
+                    
                 }
 
                 Client = ConnectClient(ClientName, connectionString, authToken);
