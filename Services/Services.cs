@@ -82,7 +82,7 @@ namespace Chetch.Services
             {
                 StartArgs = Utilities.Format.ParsCommandLineArguments(args);
             }
-            if (StartArgs.ContainsKey(RESET_SETTINGS_START_ARG) && Settings != null)
+            if (StartArgs != null && StartArgs.ContainsKey(RESET_SETTINGS_START_ARG) && Settings != null)
             {
                 Tracing?.TraceEvent(TraceEventType.Information, 0, "Start argument request to reset settings");
                 Settings.Reset();
