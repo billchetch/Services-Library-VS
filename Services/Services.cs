@@ -15,6 +15,7 @@ using System.Timers;
 
 namespace Chetch.Services
 {
+    [System.ComponentModel.DesignerCategory("Code")]
     abstract public class ChetchService : ServiceBase
     {
         protected static String SUPPORTED_CULTURES = "en-GB,en-US";
@@ -102,6 +103,7 @@ namespace Chetch.Services
         }
     }
 
+    [System.ComponentModel.DesignerCategory("Code")]
     abstract public class ChetchMessagingServer : ChetchService
     {
         protected Server MServer { get; set; } = null;
@@ -153,7 +155,7 @@ namespace Chetch.Services
         }
     } //end ChetchMessagingService
 
-
+    [System.ComponentModel.DesignerCategory("Code")]
     abstract public class ChetchMessagingClient : ChetchService
     {
         public const String CMC_AUTH_TOKEN_SETTINGS_KEY = "CMCAuthToken";

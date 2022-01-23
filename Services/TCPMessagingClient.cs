@@ -7,6 +7,7 @@ using Chetch.Messaging;
 
 namespace Chetch.Services
 {
+    [System.ComponentModel.DesignerCategory("Code")]
     abstract public class TCPMessagingClient : ChetchMessagingClient
     {
         private String _cmSourceName;

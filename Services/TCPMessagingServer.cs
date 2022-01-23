@@ -8,6 +8,7 @@ using Chetch.Utilities.Config;
 
 namespace Chetch.Services
 {
+    [System.ComponentModel.DesignerCategory("Code")]
     public class TCPMessagingServer : ChetchMessagingServer
     {
         public const int CONNECTION_REQUEST_PORT = 12000;
