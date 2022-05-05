@@ -158,7 +158,6 @@ namespace Chetch.Services
         {
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Shutting down {0}", ServiceName);
             base.OnShutdown();
-
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopping messaging server {0}", MServer.ID);
             MServer.Stop();
             Tracing?.TraceEvent(TraceEventType.Information, 0, "Stopped messaging server {0}", MServer.ID);
