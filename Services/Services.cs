@@ -177,7 +177,9 @@ namespace Chetch.Services
         protected String ClientName { get; set; } = null;
         private String connectionString; //can be set in service arguments
         private System.Timers.Timer _connectTimer;
-        private List<MessageFilter> _subscriptions = new List<MessageFilter>();
+        
+        public List<MessageFilter> Subscriptions { get; internal set; } = new List<MessageFilter>();
+        
         protected List<String> CommandHelp = new List<String>();
         protected String AboutSummary { get; set; } = "About blurb...";
 
@@ -346,8 +348,11 @@ namespace Chetch.Services
                 throw new Exception("Message filter must have a Sender value");
             }
 
-            _subscriptions.Add(messageFilter);
-            if (Client != null && Client.IsConnected) Client.Subscribe(messageFilter);
+            Subscriptions.Add(messageFilter);
+            if (Client != null && Client.IsConnected)
+            {
+                Client.Subscribe(messageFilter);
+            }
         }
 
         protected void Unsubscribe(String clientName)
