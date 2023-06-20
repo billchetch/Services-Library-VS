@@ -275,8 +275,8 @@ namespace Chetch.Services
                 }
             }
 
-            if (_subscriptions.Count > 0 && cnn.Name == ClientName) {
-                foreach (MessageFilter f in _subscriptions)
+            if (Subscriptions.Count > 0 && cnn.Name == ClientName) {
+                foreach (MessageFilter f in Subscriptions)
                 {
                     Tracing?.TraceEvent(TraceEventType.Information, 0, "OnClientConnect: Subscribing to {0}", f.Sender);
                     cnn.Subscribe(f);
@@ -334,7 +334,7 @@ namespace Chetch.Services
 
         protected bool IsSubscribedTo(String clientName)
         {
-            foreach (MessageFilter f in _subscriptions)
+            foreach (MessageFilter f in Subscriptions)
             {
                 if (f.Sender.Equals(clientName))return true;
             }
@@ -359,13 +359,13 @@ namespace Chetch.Services
         {
             clientName = clientName.Trim();
             List<MessageFilter> toRemove = new List<MessageFilter>();
-            foreach(MessageFilter f in _subscriptions)
+            foreach(MessageFilter f in Subscriptions)
             {
                 if (f.Sender.Equals(clientName)) toRemove.Add(f);
             }
             foreach(MessageFilter f in toRemove)
             {
-                _subscriptions.Remove(f);
+                Subscriptions.Remove(f);
             }
 
             if (Client != null && Client.IsConnected) Client.Unsubscribe(clientName);
