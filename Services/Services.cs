@@ -101,6 +101,11 @@ namespace Chetch.Services
         {
             OnStop();
         }
+
+        public void Test(string[] args = null)
+        {
+            //hook can be used to run a test
+        }
     }
 
     [System.ComponentModel.DesignerCategory("Code")]
