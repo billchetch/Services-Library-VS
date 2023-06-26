@@ -102,7 +102,7 @@ namespace Chetch.Services
             OnStop();
         }
 
-        public void Test(string[] args = null)
+        virtual public void Test(string[] args = null)
         {
             //hook can be used to run a test
         }
