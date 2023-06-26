@@ -104,7 +104,7 @@ namespace Chetch.Services
 
         virtual public void Test(string[] args = null)
         {
-            //hook can be used to run a test
+            //stub can be used to run a test
         }
     }
 
